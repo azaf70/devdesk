@@ -1,0 +1,31 @@
+# Production image for always-on VPS deploy
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY package.json package-lock.json next.config.js tsconfig.json server.ts ./
+COPY app ./app
+COPY components ./components
+COPY lib ./lib
+RUN mkdir -p public
+
+# Needs read access to mounted SSH key for host ops
+EXPOSE 3000
+CMD ["npx", "tsx", "server.ts"]

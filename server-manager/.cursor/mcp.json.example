@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "coolify": {
+      "command": "npx",
+      "args": ["-y", "coolify-mcp-server-kof70"],
+      "env": {
+        "COOLIFY_BASE_URL": "https://coolify.azafcodes.co.uk",
+        "COOLIFY_TOKEN": "REPLACE_WITH_TOKEN_FROM_secrets/coolify-api-token.txt",
+        "COOLIFY_READONLY": "true"
+      }
+    }
+  }
+}

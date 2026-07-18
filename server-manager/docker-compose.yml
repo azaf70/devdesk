@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: server-manager-app
+    container_name: server-manager-app
+    restart: unless-stopped
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      NODE_ENV: development
+      SSH_PRIVATE_KEY_PATH: /run/secrets/azaf-codes.pem
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - ../azaf-codes.pem:/run/secrets/azaf-codes.pem:ro
+    networks:
+      - server-manager-network
+      - local-dev-network
+
+  web:
+    image: nginx:alpine
+    container_name: server-manager-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      # Shared local edge: rent-tracker.apps.test → rent-tracker-app
+      - ../rent-tracker/docker/nginx/default.conf:/etc/nginx/conf.d/rent-tracker.conf:ro
+    networks:
+      - server-manager-network
+      - local-dev-network
+    depends_on:
+      - app
+
+networks:
+  server-manager-network:
+    driver: bridge
+  local-dev-network:
+    external: true

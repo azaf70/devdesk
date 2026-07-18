@@ -1,0 +1,50 @@
+# Always-on Server Manager on the VPS.
+# Bound for private access (Tailscale / localhost). Basic auth required.
+#
+# Usage:
+#   cp .env.example .env   # fill secrets
+#   ./scripts/gen-htpasswd.sh 'your-strong-password'
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: server-manager-app:prod
+    container_name: server-manager-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      NODE_ENV: production
+      SSH_PRIVATE_KEY_PATH: /run/secrets/ssh_key
+    volumes:
+      - ./secrets/ssh_key:/run/secrets/ssh_key:ro
+    networks:
+      - server-manager
+    # Reach host Docker/SSH via host gateway when SSH_HOST=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  web:
+    image: nginx:alpine
+    container_name: server-manager-web
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      # Private by default: only localhost on the VPS.
+      # Reach via Tailscale Serve, or SSH tunnel: ssh -L 3847:127.0.0.1:3847 root@VPS
+      - "127.0.0.1:3847:80"
+    volumes:
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./secrets/htpasswd:/etc/nginx/htpasswd:ro
+    networks:
+      - server-manager
+
+networks:
+  server-manager:
+    driver: bridge

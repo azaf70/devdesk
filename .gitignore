@@ -1,0 +1,12 @@
+# OS / IDE
+.DS_Store
+.cursor/mcp.json
+.cursor/**/mcp.json
+
+# Secrets — never commit
+*.pem
+**/.env
+**/.env.*
+!**/.env.example
+**/secrets/**
+!**/secrets/.gitkeep
