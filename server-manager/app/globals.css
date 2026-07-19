@@ -144,6 +144,12 @@ body {
   min-height: 280px;
 }
 
+.ops-grid-secondary {
+  flex: 0 0 auto;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
 .ops-grid > .section {
   min-height: 0;
   display: flex;
@@ -187,7 +193,8 @@ body {
     overflow: visible;
   }
 
-  .ops-grid {
+  .ops-grid,
+  .ops-grid-secondary {
     grid-template-columns: 1fr;
     min-height: 0;
   }
@@ -890,20 +897,43 @@ a.wd-label:hover {
   opacity: 0.7;
 }
 
+/* —— Queues (compact in secondary grid) —— */
+.queues-section {
+  position: relative;
+  min-height: 0;
+}
+
+.queues-section .docker-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main status"
+    "actions actions";
+  gap: 0.45rem 0.75rem;
+}
+
+.queues-section .docker-main {
+  grid-area: main;
+}
+
+.queues-section .docker-status {
+  grid-area: status;
+  justify-self: end;
+  text-align: right;
+}
+
+.queues-section .docker-actions {
+  grid-area: actions;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
 /* —— Backups —— */
 .backup-bar {
   flex-shrink: 0;
-  padding: 0.95rem 1.1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  backdrop-filter: blur(10px);
 }
 
 .backup-bar-head {
-  margin-bottom: 0;
-  align-items: center;
-  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
 }
 
 .backup-bar-main {
@@ -924,9 +954,14 @@ a.wd-label:hover {
 
 .backup-bar-actions {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  margin-top: auto;
+}
+
+.backup-bar-actions .btn {
+  justify-content: center;
 }
 
 .backup-meta {

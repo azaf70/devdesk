@@ -81,9 +81,10 @@ export default function HomePage() {
           <DockerPanel />
         </div>
 
-        <QueuePanel />
-
-        <BackupPanel />
+        <div className="ops-grid ops-grid-secondary">
+          <QueuePanel />
+          <BackupPanel />
+        </div>
       </div>
 
       {sshMounted && (

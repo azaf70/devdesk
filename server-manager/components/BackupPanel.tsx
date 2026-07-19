@@ -64,7 +64,7 @@ export function BackupPanel() {
   const targetCount = info?.targets.length ?? 0;
 
   return (
-    <section className="section backup-bar">
+    <section className="section panel-card backup-bar">
       <header className="section-head backup-bar-head">
         <div className="backup-bar-main">
           <h2>Backups</h2>
@@ -76,29 +76,30 @@ export function BackupPanel() {
             </p>
           )}
         </div>
-        <div className="backup-bar-actions">
-          <Link href="/playbooks#restore-db" className="btn btn-ghost btn-sm">
-            Restore steps
-          </Link>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={!info}
-            onClick={() => setShowDetails((v) => !v)}
-            aria-expanded={showDetails}
-          >
-            {showDetails ? "Hide details" : "Details"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
-            disabled={busy || !info?.targets.length}
-            onClick={run}
-          >
-            {busy ? "Running…" : "Backup now"}
-          </button>
-        </div>
       </header>
+
+      <div className="backup-bar-actions">
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={busy || !info?.targets.length}
+          onClick={run}
+        >
+          {busy ? "Running…" : "Backup now"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={!info}
+          onClick={() => setShowDetails((v) => !v)}
+          aria-expanded={showDetails}
+        >
+          {showDetails ? "Hide details" : "Details"}
+        </button>
+        <Link href="/playbooks#restore-db" className="btn btn-ghost btn-sm">
+          Restore steps
+        </Link>
+      </div>
 
       {error && (
         <p className="error-banner" role="alert">
