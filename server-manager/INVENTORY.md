@@ -27,6 +27,7 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 | VPS always-on deploy | `/opt/server-manager`, UI `127.0.0.1:3847` + nginx basic auth |
 | Watchdog + Telegram | Configured in `.env` |
 | Laravel queue monitor | Home → Queues; `QUEUE_APPS` + Telegram via watchdog ([`docs/QUEUES.md`](docs/QUEUES.md)) |
+| Laravel queues (prod) | **Live:** `QUEUE_CONNECTION=database` + host `laravel-queue@*` systemd workers (Nixpacks interim). Disk cleaned 2026-07-19 → ~58% / 15 GB free |
 | Cloudflare R2 bucket | `server-manager-backups` (WEUR, Standard) |
 | R2 S3 API token | `server-manager-backups-r2` — keys in `.env` as `BACKUP_S3_*` |
 | `BACKUP_TARGETS` | Set (Coolify Postgres + 3 MySQL DBs) |
@@ -39,11 +40,11 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 
 ### Next agent checklist
 
-1. **Human (Coolify, off-peak):** cut each Laravel app to GHCR + `QUEUE_CONNECTION=database` per [docs/QUEUES.md](docs/QUEUES.md) (KInventory first).
-2. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
-3. Optional: Tailscale Serve.
-4. Watch R2 usage in Cloudflare dashboard — stay under free tier.
-5. Rotate Telegram bot token if it was ever pasted in a screenshot.
+1. Optional later: cut Laravel apps from Nixpacks → GHCR (`Dockerfile.prod` + in-container supervisord). Host `laravel-queue@*` can then be disabled per app. See [docs/ADD_LARAVEL_QUEUES.md](docs/ADD_LARAVEL_QUEUES.md).
+2. Keep disk under ~75% before any Coolify rebuild (`docker builder prune -af` + `docker image prune -af`; never volumes).
+3. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
+4. Optional: Tailscale Serve.
+5. Watch R2 usage in Cloudflare dashboard — stay under free tier.
 6. Do **not** add paid Cloudflare/Hetzner features without explicit approval.
 
 ## Host

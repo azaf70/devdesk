@@ -16,30 +16,20 @@ Watchdog Telegram: worker DOWN or `failed_jobs > 0` (state-change only).
 
 ## Cutover checklist (one app at a time, off-peak)
 
-Prereqs: Concurrent builds = **1** in Coolify. See [PREVENT_SLOWDOWNS.md](PREVENT_SLOWDOWNS.md).
+**Already live (2026-07-19):** all three Laravel apps use `QUEUE_CONNECTION=database` and host `laravel-queue@*` workers. Disk cleaned to ~58%.
 
-### KInventory (first)
+Prereqs for future GHCR image cutover: Concurrent builds = **1**; disk preferably &lt;75%. See [PREVENT_SLOWDOWNS.md](PREVENT_SLOWDOWNS.md) / [ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md).
 
-1. Merge / push `feat/queue-worker` so GHCR builds an image with `[program:queue-worker]` in `docker/prod/supervisord.conf`.
-2. Coolify → KInventory → Environment: set `QUEUE_CONNECTION=database`.
-3. Switch deploy source from Nixpacks to Docker image `ghcr.io/<owner>/kinventory:latest` (or `:sha`).
-4. Redeploy once.
-5. Verify:
+### Optional: move worker into the app image (GHCR)
 
-```bash
-C=$(docker ps --filter label=coolify.projectName=kinventory -q | head -1)
-docker exec "$C" php /var/www/html/artisan about | grep -i Queue   # database
-docker exec "$C" supervisorctl status                              # queue-worker RUNNING
-docker exec "$C" sh -c 'ps aux | grep "[q]ueue:work"'
-```
-
-### Rent Tracker
-
-Same recipe: image `ghcr.io/<owner>/rent-tracker:latest`, env `QUEUE_CONNECTION=database`, label `coolify.projectName=rent-tracker`.
+1. Push `Dockerfile.prod` with `[program:queue-worker]` (already on main for kinventory / rent-tracker).
+2. Coolify → switch source to GHCR image (keep `QUEUE_CONNECTION=database`).
+3. Redeploy once; then `systemctl disable --now laravel-queue@<project>`.
+4. Verify `supervisorctl status` shows `queue-worker RUNNING`.
 
 ### Who Owes Who / any app not cloned locally
 
-Follow the full checklist: **[ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md)** (and `scripts/add-queue-worker.sh`).
+Follow **[ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md)** (and `scripts/add-queue-worker.sh` for the image-side config).
 
 ## Worker command (in image)
 
