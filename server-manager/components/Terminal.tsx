@@ -7,7 +7,11 @@ import "@xterm/xterm/css/xterm.css";
 
 type Status = "connecting" | "connected" | "disconnected";
 
-export function Terminal() {
+type TerminalProps = {
+  onClose?: () => void;
+};
+
+export function Terminal({ onClose }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTermType | null>(null);
   const fitRef = useRef<FitAddonType | null>(null);
@@ -155,9 +159,16 @@ export function Terminal() {
           <h2>Live SSH</h2>
           <span className={`status-chip status-${status}`}>{statusLabel}</span>
         </div>
-        <button type="button" className="btn btn-sm" onClick={reconnect}>
-          Reconnect
-        </button>
+        <div className="terminal-chrome-actions">
+          <button type="button" className="btn btn-sm" onClick={reconnect}>
+            Reconnect
+          </button>
+          {onClose && (
+            <button type="button" className="btn btn-sm" onClick={onClose}>
+              Close
+            </button>
+          )}
+        </div>
       </header>
       <div className="terminal-frame" ref={containerRef} />
     </section>

@@ -46,6 +46,7 @@ export function WatchdogPanel() {
   const [data, setData] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showMeta, setShowMeta] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -87,10 +88,10 @@ export function WatchdogPanel() {
   const downCount = data?.urls.filter((u) => !u.ok).length ?? 0;
 
   return (
-    <section className="section">
+    <section className="section panel-card">
       <header className="section-head">
         <div className="section-head-left">
-          <h2>Watchdog</h2>
+          <h2>Health</h2>
           {allUrlOk === true && (
             <span className="status-chip status-connected">All up</span>
           )}
@@ -120,10 +121,26 @@ export function WatchdogPanel() {
 
       {data && (
         <>
-          <p className="muted watchdog-meta">
-            {timeAgo(data.lastRunAt)} · {Math.round(data.intervalMs / 1000)}s
-            cycle · TG {data.telegramConfigured ? "on" : "off"}
-          </p>
+          <div className="watchdog-meta-row">
+            <p className="muted watchdog-meta">
+              Checked {timeAgo(data.lastRunAt)}
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowMeta((v) => !v)}
+              aria-expanded={showMeta}
+            >
+              {showMeta ? "Hide" : "Details"}
+            </button>
+          </div>
+
+          {showMeta && (
+            <p className="muted watchdog-meta-detail">
+              {Math.round(data.intervalMs / 1000)}s cycle · Telegram{" "}
+              {data.telegramConfigured ? "on" : "off"}
+            </p>
+          )}
 
           {data.urls.length === 0 &&
             (data.configuredUrls?.length ?? 0) === 0 && (
@@ -163,7 +180,9 @@ export function WatchdogPanel() {
                   </a>
                   <span className="wd-meta mono">
                     {u.ok
-                      ? `${u.status} · ${u.latencyMs}ms`
+                      ? u.latencyMs >= 1000
+                        ? `${u.status} · ${u.latencyMs}ms`
+                        : String(u.status)
                       : u.error || "down"}
                   </span>
                 </div>

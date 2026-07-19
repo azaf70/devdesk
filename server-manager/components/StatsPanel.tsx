@@ -91,20 +91,13 @@ export function StatsPanel() {
   const diskPct = data ? pct(data.disk.usedBytes, data.disk.totalBytes) : 0;
 
   return (
-    <section className="section">
-      <header className="section-head">
-        <h2>Overview</h2>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={load}>
-          Refresh
-        </button>
-      </header>
-
+    <section className="status-strip" aria-label="Server overview">
       {loading && !data && !error && (
-        <p className="skeleton">Checking server…</p>
+        <p className="skeleton status-strip-msg">Checking server…</p>
       )}
 
       {error && (
-        <p className="error-banner" role="alert">
+        <p className="error-banner status-strip-msg" role="alert">
           {error}
         </p>
       )}
@@ -113,10 +106,12 @@ export function StatsPanel() {
         <div className="metrics">
           <div className="metric">
             <span className="metric-label">Host</span>
-            <span className="metric-value mono" style={{ fontSize: "1.05rem" }}>
+            <span className="metric-value mono metric-value-host">
               {data.host}
             </span>
-            <span className="metric-sub">{data.uname}</span>
+            <span className="metric-sub" title={data.uname}>
+              {data.uname}
+            </span>
           </div>
           <div className="metric">
             <span className="metric-label">Uptime</span>

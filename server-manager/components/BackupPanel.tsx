@@ -24,6 +24,7 @@ export function BackupPanel() {
   const [result, setResult] = useState<BackupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -60,18 +61,43 @@ export function BackupPanel() {
     }
   };
 
+  const targetCount = info?.targets.length ?? 0;
+
   return (
-    <section className="section">
-      <header className="section-head">
-        <h2>Backups</h2>
-        <button
-          type="button"
-          className="btn btn-sm btn-primary"
-          disabled={busy || !info?.targets.length}
-          onClick={run}
-        >
-          {busy ? "Running…" : "Backup now"}
-        </button>
+    <section className="section backup-bar">
+      <header className="section-head backup-bar-head">
+        <div className="backup-bar-main">
+          <h2>Backups</h2>
+          {info && (
+            <p className="backup-summary muted">
+              {targetCount === 0
+                ? "No targets configured"
+                : `${targetCount} target${targetCount === 1 ? "" : "s"} · keep ${info.keepDays}d · S3 ${info.s3Configured ? "on" : "off"}`}
+            </p>
+          )}
+        </div>
+        <div className="backup-bar-actions">
+          <Link href="/playbooks#restore-db" className="btn btn-ghost btn-sm">
+            Restore steps
+          </Link>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={!info}
+            onClick={() => setShowDetails((v) => !v)}
+            aria-expanded={showDetails}
+          >
+            {showDetails ? "Hide details" : "Details"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            disabled={busy || !info?.targets.length}
+            onClick={run}
+          >
+            {busy ? "Running…" : "Backup now"}
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -80,12 +106,10 @@ export function BackupPanel() {
         </p>
       )}
 
-      {info && (
+      {info && showDetails && (
         <div className="backup-meta">
           <p className="muted">
-            Remote dir <span className="mono">{info.remoteDir}</span> · keep{" "}
-            {info.keepDays}d · off-box S3{" "}
-            {info.s3Configured ? "configured" : "not set"}
+            Remote dir <span className="mono">{info.remoteDir}</span>
           </p>
           {info.targets.length === 0 ? (
             <p className="muted">
@@ -104,10 +128,6 @@ export function BackupPanel() {
               ))}
             </ul>
           )}
-          <p className="muted">
-            Restore steps:{" "}
-            <Link href="/playbooks#restore-db">Playbooks → Restore DB</Link>
-          </p>
         </div>
       )}
 

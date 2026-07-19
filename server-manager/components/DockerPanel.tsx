@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Container = {
   id: string;
@@ -19,6 +19,8 @@ export function DockerPanel() {
     null,
   );
   const [loading, setLoading] = useState(true);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -42,8 +44,27 @@ export function DockerPanel() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!menuFor) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuFor(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuFor(null);
+    };
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuFor]);
+
   const act = async (id: string, action: string, name: string) => {
     setBusy(`${action}:${id}`);
+    setMenuFor(null);
     try {
       const res = await fetch(`/api/docker/${encodeURIComponent(id)}`, {
         method: "POST",
@@ -72,9 +93,16 @@ export function DockerPanel() {
   };
 
   return (
-    <section className="section containers-section">
+    <section className="section panel-card containers-section">
       <header className="section-head">
-        <h2>Containers</h2>
+        <div className="section-head-left">
+          <h2>Containers</h2>
+          {containers.length > 0 && (
+            <span className="muted mono container-count">
+              {containers.length}
+            </span>
+          )}
+        </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={load}>
           Refresh
         </button>
@@ -98,6 +126,7 @@ export function DockerPanel() {
               /^Up /,
               "",
             );
+            const open = menuFor === c.id;
             return (
               <div className="docker-row" key={c.id}>
                 <div className="docker-main">
@@ -135,22 +164,43 @@ export function DockerPanel() {
                       Start
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    disabled={!!busy}
-                    onClick={() => act(c.id, "restart", c.name)}
+                  <div
+                    className="docker-more"
+                    ref={open ? menuRef : undefined}
                   >
-                    Restart
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-ghost"
-                    disabled={!!busy}
-                    onClick={() => act(c.id, "logs", c.name)}
-                  >
-                    Logs
-                  </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      disabled={!!busy}
+                      aria-expanded={open}
+                      aria-haspopup="menu"
+                      onClick={() => setMenuFor(open ? null : c.id)}
+                    >
+                      More
+                    </button>
+                    {open && (
+                      <div className="docker-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="docker-menu-item"
+                          disabled={!!busy}
+                          onClick={() => act(c.id, "restart", c.name)}
+                        >
+                          Restart
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="docker-menu-item"
+                          disabled={!!busy}
+                          onClick={() => act(c.id, "logs", c.name)}
+                        >
+                          Logs
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
