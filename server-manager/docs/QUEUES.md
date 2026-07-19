@@ -7,7 +7,7 @@
 - Server Manager resolves containers by Coolify label **`coolify.projectName`** (stable across redeploys; `coolify.name` is the random UUID).
 
 ```
-QUEUE_APPS=kinventory:coolify.projectName=kinventory:KInventory,rent-tracker:coolify.projectName=rent-tracker:Rent Tracker,who-owes-who:coolify.projectName=who-owes-who:Who Owes Who
+QUEUE_APPS="kinventory:coolify.projectName=kinventory:KInventory,rent-tracker:coolify.projectName=rent-tracker:Rent Tracker,who-owes-who:coolify.projectName=who-owes-who:Who Owes Who"
 QUEUE_FAILED_ALERT=1
 ```
 

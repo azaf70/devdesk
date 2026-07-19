@@ -80,7 +80,7 @@ who-owes-who:coolify.projectName=who-owes-who:Who Owes Who
 Redeploy Server Manager (or restart the app container) so env is picked up. Full line pattern:
 
 ```
-QUEUE_APPS=kinventory:coolify.projectName=kinventory:KInventory,rent-tracker:coolify.projectName=rent-tracker:Rent Tracker,who-owes-who:coolify.projectName=who-owes-who:Who Owes Who
+QUEUE_APPS="kinventory:coolify.projectName=kinventory:KInventory,rent-tracker:coolify.projectName=rent-tracker:Rent Tracker,who-owes-who:coolify.projectName=who-owes-who:Who Owes Who"
 QUEUE_FAILED_ALERT=1
 ```
 
