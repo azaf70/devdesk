@@ -1,0 +1,54 @@
+# Production image for Coolify / GHCR (who-owes-who monorepo; app in apps/api).
+# Listens on 80 to match Coolify ports_exposes.
+# Do NOT bake secrets — Coolify injects env at runtime.
+#
+# Commit these files into azaf70/who-owes-who (repo root + docker/prod/).
+
+FROM node:22-alpine AS frontend
+WORKDIR /build
+COPY apps/api/package.json apps/api/package-lock.json ./
+RUN npm ci --no-fund --no-audit
+COPY apps/api/resources ./resources
+COPY apps/api/vite.config.ts apps/api/tsconfig.json ./
+COPY apps/api/public ./public
+RUN npm run build
+
+FROM composer:2 AS vendor
+WORKDIR /build
+COPY apps/api/composer.json apps/api/composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+
+FROM php:8.3-fpm-alpine AS runtime
+RUN apk add --no-cache nginx supervisor bash icu-dev libzip-dev oniguruma-dev mysql-client \
+    && docker-php-ext-install pdo pdo_mysql intl zip opcache mbstring \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /var/www/html
+
+COPY --from=vendor /build/vendor ./vendor
+COPY apps/api/artisan apps/api/composer.json apps/api/composer.lock ./
+COPY apps/api/app ./app
+COPY apps/api/bootstrap ./bootstrap
+COPY apps/api/config ./config
+COPY apps/api/database ./database
+COPY apps/api/public ./public
+COPY apps/api/resources ./resources
+COPY apps/api/routes ./routes
+COPY apps/api/storage ./storage
+COPY --from=frontend /build/public/build ./public/build
+
+COPY docker/prod/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/prod/supervisord.conf /etc/supervisord.conf
+COPY docker/prod/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+    && rm -f bootstrap/cache/packages.php bootstrap/cache/services.php \
+    && rm -f config/scribe.php \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && touch storage/logs/laravel.log \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+EXPOSE 80
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

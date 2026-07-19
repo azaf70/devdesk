@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Add a Laravel queue-worker program to docker/prod/supervisord.conf if missing.
+# Low-level helper: add a Laravel queue-worker to an existing production config.
 # Usage: ./scripts/add-queue-worker.sh /path/to/laravel-app
-# Idempotent. Does not touch Coolify — see docs/ADD_LARAVEL_QUEUES.md.
+# For a new app, prefer setup-laravel-ghcr.sh (Docker, GHCR, monitoring, Coolify).
+# Idempotent. Does not touch Coolify.
 
 set -euo pipefail
 
@@ -39,4 +40,4 @@ EOF
 
 echo "Appended [program:queue-worker] to $CONF"
 echo "Next: commit, push (GHCR build), Coolify QUEUE_CONNECTION=database + image cutover."
-echo "Checklist: docs/ADD_LARAVEL_QUEUES.md"
+echo "For full setup: scripts/setup-laravel-ghcr.sh --help"

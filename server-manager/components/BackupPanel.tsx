@@ -66,19 +66,7 @@ export function BackupPanel() {
   return (
     <section className="section panel-card backup-bar">
       <header className="section-head backup-bar-head">
-        <div className="backup-bar-main">
-          <h2>Backups</h2>
-          {info && (
-            <p className="backup-summary muted">
-              {targetCount === 0
-                ? "No targets configured"
-                : `${targetCount} target${targetCount === 1 ? "" : "s"} · keep ${info.keepDays}d · S3 ${info.s3Configured ? "on" : "off"}`}
-            </p>
-          )}
-        </div>
-      </header>
-
-      <div className="backup-bar-actions">
+        <h2>Backups</h2>
         <button
           type="button"
           className="btn btn-sm btn-primary"
@@ -87,6 +75,16 @@ export function BackupPanel() {
         >
           {busy ? "Running…" : "Backup now"}
         </button>
+      </header>
+      {info && (
+        <p className="backup-summary muted">
+          {targetCount === 0
+            ? "No targets configured"
+            : `${targetCount} target${targetCount === 1 ? "" : "s"} · keep ${info.keepDays}d · S3 ${info.s3Configured ? "on" : "off"}`}
+        </p>
+      )}
+
+      <div className="backup-bar-actions">
         <button
           type="button"
           className="btn btn-ghost btn-sm"

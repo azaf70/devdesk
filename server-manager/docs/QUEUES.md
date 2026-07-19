@@ -16,20 +16,35 @@ Watchdog Telegram: worker DOWN or `failed_jobs > 0` (state-change only).
 
 ## Cutover checklist (one app at a time, off-peak)
 
-**Already live (2026-07-19):** all three Laravel apps use `QUEUE_CONNECTION=database` and host `laravel-queue@*` workers. Disk cleaned to ~58%.
+**Status (2026-07-19):**
+- **KInventory**, **rent-tracker**, **who-owes-who**: Coolify `build_pack=dockerimage` → `ghcr.io/azaf70/<app>:latest`, in-image supervisord `queue-worker`, host `laravel-queue@*` disabled.
+- Private GHCR login is configured on the VPS; all three images can be pushed/pulled normally. The temporary `pull_policy: never` workaround has been removed.
 
-Prereqs for future GHCR image cutover: Concurrent builds = **1**; disk preferably &lt;75%. See [PREVENT_SLOWDOWNS.md](PREVENT_SLOWDOWNS.md) / [ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md).
+Prereqs: Concurrent builds = **1**; disk preferably &lt;75%. See [PREVENT_SLOWDOWNS.md](PREVENT_SLOWDOWNS.md) / [ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md).
 
-### Optional: move worker into the app image (GHCR)
+### Move worker into the app image (GHCR)
 
-1. Push `Dockerfile.prod` with `[program:queue-worker]` (already on main for kinventory / rent-tracker).
-2. Coolify → switch source to GHCR image (keep `QUEUE_CONNECTION=database`).
-3. Redeploy once; then `systemctl disable --now laravel-queue@<project>`.
-4. Verify `supervisorctl status` shows `queue-worker RUNNING`.
+For a new standard Laravel app, start with:
 
-### Who Owes Who / any app not cloned locally
+```bash
+./scripts/setup-laravel-ghcr.sh \
+  --app /path/to/app \
+  --image ghcr.io/azaf70/app \
+  --project app \
+  --name "App"
+```
 
-Follow **[ADD_LARAVEL_QUEUES.md](ADD_LARAVEL_QUEUES.md)** (and `scripts/add-queue-worker.sh` for the image-side config).
+Then:
+
+1. Review and push the generated `Dockerfile.prod`, `docker/prod/*`, and GHCR workflow.
+2. Coolify → switch source to **Docker Image** `ghcr.io/<owner>/<repo>:latest` (keep `QUEUE_CONNECTION=database`; keep `ports_exposes`).
+3. If the app had a Nixpacks storage mount under `/app/...`, move it to `/var/www/html/...` (same named volume).
+4. Redeploy once; run `php artisan migrate --force` once if needed; then `systemctl disable --now laravel-queue@<project>`.
+5. Verify HTTP 200, `queue:work` process up, Server Manager Queues panel green.
+
+### Who Owes Who notes
+
+Root `Dockerfile` listens on **80** (matches Coolify). Prod entrypoint must **not** run `DemoSeeder`. Strip `config/scribe.php` from the image (`knuckleswtf/scribe` is require-dev).
 
 ## Worker command (in image)
 

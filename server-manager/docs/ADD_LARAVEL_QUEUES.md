@@ -6,25 +6,99 @@ Related: [QUEUES.md](QUEUES.md) (monitoring in Server Manager).
 
 ## Current production pattern (2026-07-19)
 
-While apps still run on **Nixpacks** (no supervisord in the image):
+**GHCR Docker images (preferred):** KInventory, rent-tracker, and who-owes-who run Coolify `build_pack=dockerimage` with in-image supervisord `queue-worker`. Host `laravel-queue@*` units are **disabled** for those apps.
+
+**Interim Nixpacks path** (only if an app is still on Nixpacks):
 
 1. Coolify env **`QUEUE_CONNECTION=database`** (encrypted in Coolify DB + `/data/coolify/applications/<uuid>/.env`).
 2. Host systemd template **`laravel-queue@.service`** runs:
    `docker exec … php …/artisan queue:work database --sleep=3 --tries=3 --max-time=3600`
    Resolved by label `coolify.projectName=%i`.
-3. Enabled units: `laravel-queue@kinventory`, `@rent-tracker`, `@who-owes-who`.
 
 ```bash
-systemctl status 'laravel-queue@kinventory'
-systemctl restart 'laravel-queue@rent-tracker'
+systemctl status 'laravel-queue@who-owes-who'
 # After Coolify redeploy, workers auto-retry (Restart=always) once the new container is up
 ```
 
-When an app later moves to **GHCR `Dockerfile.prod`** with in-image `[program:queue-worker]`, disable that app’s host unit:
+When an app moves to **GHCR `Dockerfile.prod`** with in-image `[program:queue-worker]`, disable that app’s host unit:
 
 ```bash
 systemctl disable --now 'laravel-queue@kinventory'
 ```
+
+**GHCR pull status:** the VPS is logged into private GHCR with a classic PAT that can pull all three current images. Coolify compose files use normal pulls (the temporary `pull_policy: never` workaround was removed).
+
+## New app: automated setup
+
+From the Server Manager checkout, run:
+
+```bash
+./scripts/setup-laravel-ghcr.sh \
+  --app /path/to/laravel-repo \
+  --image ghcr.io/azaf70/repo-name \
+  --project coolify-project-name \
+  --name "Display Name" \
+  --port 3000
+```
+
+The command is idempotent and:
+
+- creates `Dockerfile.prod`, `docker/prod/*`, and `.github/workflows/ghcr.yml`;
+- adds safe Docker ignores and `QUEUE_CONNECTION=database`;
+- registers the app in Server Manager’s `QUEUE_APPS`;
+- validates ports, GHCR workflow permissions, queue-worker config, and queue migrations.
+
+Existing generated files are preserved. Use `--force` only after reviewing the app’s requirements. For a monorepo, add `--laravel-dir apps/api`. Use `--check` for validation without writes.
+
+To also update an **existing** Coolify application through the API:
+
+```bash
+COOLIFY_URL=https://coolify.example.com \
+COOLIFY_API_TOKEN=... \
+./scripts/setup-laravel-ghcr.sh \
+  --app /path/to/repo \
+  --image ghcr.io/azaf70/repo-name \
+  --project project-name \
+  --coolify-uuid APPLICATION_UUID \
+  --apply-coolify --deploy
+```
+
+Coolify mutation is never implicit. `--apply-coolify` sets Docker Image, tag, exposed port, and production-safe env defaults (`QUEUE_CONNECTION`, `APP_ENV`, `APP_DEBUG`, `LOG_LEVEL`). Persistent storage paths remain a manual review because changing the wrong mount can hide production data.
+
+For automatic deployments after every successful GHCR build, copy the app’s
+Coolify deploy webhook (**uuid only — never put an API token in the URL**) and
+provide a Coolify API token separately:
+
+```bash
+COOLIFY_API_TOKEN=... \
+./scripts/setup-laravel-ghcr.sh \
+  --app /path/to/repo \
+  --image ghcr.io/azaf70/repo-name \
+  --project project-name \
+  --deploy-webhook 'https://coolify.example.com/api/v1/deploy?uuid=APPLICATION_UUID'
+```
+
+This stores two GitHub secrets: `COOLIFY_DEPLOY_WEBHOOK` and `COOLIFY_API_TOKEN`.
+The workflow deploys with `Authorization: Bearer …` only after the image push succeeds.
+Without both secrets, image builds stay automatic but deployment remains manual.
+
+## Production security checklist
+
+Verified live for current apps (2026-07-19): `APP_DEBUG=false`, GHCR packages **private**, Docker credentials mode `600`, containers expose ports only on the Coolify network (not published to the public internet).
+
+Before any new app go-live:
+
+- [ ] Coolify env: `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY` set, `LOG_LEVEL=error`
+- [ ] Prefer `SESSION_SECURE_COOKIE=true` on HTTPS apps
+- [ ] GHCR package visibility = **private** (Actions `GITHUB_TOKEN` push inherits repo/package settings — confirm in GitHub Packages UI)
+- [ ] VPS `docker login ghcr.io` uses a classic PAT; store in `/root/.docker/config.json` mode `600` only
+- [ ] Revoke any PAT that was pasted into chat/logs; prefer `read:packages` for pull-only hosts, `write:packages` only where push is required
+- [ ] Entrypoint refuses missing `APP_KEY` and refuses `APP_DEBUG=true` / `APP_ENV=local|testing`
+- [ ] `.dockerignore` excludes `.env`, keys, `auth.json`, local `storage/app` uploads
+- [ ] Deploy webhook URLs never embed API tokens
+- [ ] Coolify API base URL is always `https://…`
+- [ ] Persistent volume paths reviewed after Nixpacks → Docker cutover
+- [ ] No host port publish of PHP-FPM (`9000`); Traefik terminates TLS at the edge
 
 ## Goal (long-term)
 
@@ -40,6 +114,10 @@ systemctl disable --now 'laravel-queue@kinventory'
 - [ ] MySQL (or whatever DB) is reachable from the app container.
 - [ ] GHCR workflow builds `Dockerfile.prod` on push to `main` (or you build/push manually).
 - [ ] Coolify Concurrent builds = 1; do cutover **off-peak**, one app at a time.
+
+## Manual/reference setup
+
+The following sections explain what the setup script creates and remain useful for app-specific customization.
 
 ## 1. Code changes (in the app repo)
 
