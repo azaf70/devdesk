@@ -64,6 +64,20 @@ const PLAYBOOKS = [
       "Document root cause in this playbook.",
     ],
   },
+  {
+    id: "queue-worker",
+    title: "Laravel queue worker down / jobs stuck",
+    steps: [
+      "Open Server Manager → Queues: which app shows worker down or failed > 0?",
+      "Confirm Coolify env has QUEUE_CONNECTION=database (not sync).",
+      "Confirm the app is on the GHCR Dockerfile.prod image (supervisord + queue-worker), not Nixpacks.",
+      "Containers → Logs on that app — look for queue:work / supervisord errors.",
+      "Queues panel → Restart (signals queue:restart). If still down, Restart the container.",
+      "Failed jobs: list with Failed, then Retry all, or Flush if they are poison.",
+      "Verify: docker exec into the container → supervisorctl status (queue-worker RUNNING).",
+      "Full cutover steps: docs/QUEUES.md.",
+    ],
+  },
 ];
 
 export default function PlaybooksPage() {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { StatsPanel } from "@/components/StatsPanel";
 import { DockerPanel } from "@/components/DockerPanel";
 import { WatchdogPanel } from "@/components/WatchdogPanel";
+import { QueuePanel } from "@/components/QueuePanel";
 import { BackupPanel } from "@/components/BackupPanel";
 
 const Terminal = dynamic(
@@ -79,6 +80,8 @@ export default function HomePage() {
           <WatchdogPanel />
           <DockerPanel />
         </div>
+
+        <QueuePanel />
 
         <BackupPanel />
       </div>

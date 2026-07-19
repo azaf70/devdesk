@@ -1,8 +1,8 @@
 # Server Manager
 
-Local Docker app at **https://server-manager.apps.test** — live SSH, watchdog, backups, and Docker control for your VPS.
+Local Docker app at **https://server-manager.apps.test** — live SSH, watchdog, backups, queues, and Docker control for your VPS.
 
-**Agents:** start with [INVENTORY.md](INVENTORY.md) (status, R2, Coolify MCP, **cost budget**). Deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Stay free-tier / a couple of USD max — no surprise bills.
+**Agents:** start with [INVENTORY.md](INVENTORY.md) (status, R2, Coolify MCP, **cost budget**). Deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Queues: [docs/QUEUES.md](docs/QUEUES.md). New Laravel app queues: [docs/ADD_LARAVEL_QUEUES.md](docs/ADD_LARAVEL_QUEUES.md). Stay free-tier / a couple of USD max — no surprise bills.
 
 ## Setup
 
@@ -41,6 +41,7 @@ docker compose up -d --build
 |---------|--------|
 | URL + host watchdog | Home → Watchdog; runs in background from `server.ts` |
 | Telegram on state change | Needs `TELEGRAM_*` |
+| Laravel queues | Home → Queues; `QUEUE_APPS` + [docs/QUEUES.md](docs/QUEUES.md) |
 | Backup now | Home → Backups → on-VPS dump + optional R2 (`UPLOADED_S3`) |
 | Restore drill | [docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md) |
 | Incident playbooks | `/playbooks` |

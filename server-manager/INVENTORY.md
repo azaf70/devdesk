@@ -26,6 +26,7 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 | Local Server Manager | Works at `https://server-manager.apps.test` |
 | VPS always-on deploy | `/opt/server-manager`, UI `127.0.0.1:3847` + nginx basic auth |
 | Watchdog + Telegram | Configured in `.env` |
+| Laravel queue monitor | Home → Queues; `QUEUE_APPS` + Telegram via watchdog ([`docs/QUEUES.md`](docs/QUEUES.md)) |
 | Cloudflare R2 bucket | `server-manager-backups` (WEUR, Standard) |
 | R2 S3 API token | `server-manager-backups-r2` — keys in `.env` as `BACKUP_S3_*` |
 | `BACKUP_TARGETS` | Set (Coolify Postgres + 3 MySQL DBs) |
@@ -38,11 +39,12 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 
 ### Next agent checklist
 
-1. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
-2. Optional: Tailscale Serve.
-3. Watch R2 usage in Cloudflare dashboard — stay under free tier.
-4. Rotate Telegram bot token if it was ever pasted in a screenshot.
-5. Do **not** add paid Cloudflare/Hetzner features without explicit approval.
+1. **Human (Coolify, off-peak):** cut each Laravel app to GHCR + `QUEUE_CONNECTION=database` per [docs/QUEUES.md](docs/QUEUES.md) (KInventory first).
+2. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
+3. Optional: Tailscale Serve.
+4. Watch R2 usage in Cloudflare dashboard — stay under free tier.
+5. Rotate Telegram bot token if it was ever pasted in a screenshot.
+6. Do **not** add paid Cloudflare/Hetzner features without explicit approval.
 
 ## Host
 
@@ -105,6 +107,7 @@ This is **not** Phase 3. Phase 3 = Coolify/Hetzner controls inside Server Manage
 | UI basic auth password | `secrets/ui-password.txt` + `secrets/htpasswd` (htpasswd must be world-readable to nginx → `644`) |
 | Coolify API token (read) | `secrets/coolify-api-token.txt` + `~/.cursor/mcp.json` |
 | Hetzner API token | _(Phase 3 — not used yet)_ |
+| Laravel queue apps | Non-secret: `QUEUE_APPS` / `QUEUE_FAILED_ALERT` in `.env` — [docs/QUEUES.md](docs/QUEUES.md) |
 
 ## Apps / services
 
@@ -112,9 +115,9 @@ This is **not** Phase 3. Phase 3 = Coolify/Hetzner controls inside Server Manage
 |---------------|---------------|--------|
 | Coolify | `coolify.azafcodes.co.uk` | Control plane; DB `coolify-db` / db `coolify` |
 | Personal site | `azafcodes.co.uk` | |
-| Kinventory | `kinventory.azafcodes.co.uk` | MySQL db `kinventory` |
-| Who Owes Who | `who-owes-who.azafcodes.co.uk` | MySQL db `who_owes_who`; own R2 bucket |
-| Rent tracker | _(Coolify app)_ | MySQL db `rent_tracker` |
+| Kinventory | `kinventory.azafcodes.co.uk` | MySQL db `kinventory`; queues via GHCR worker — [docs/QUEUES.md](docs/QUEUES.md) |
+| Who Owes Who | `who-owes-who.azafcodes.co.uk` | MySQL db `who_owes_who`; own R2 bucket; queue recipe [docs/ADD_LARAVEL_QUEUES.md](docs/ADD_LARAVEL_QUEUES.md) |
+| Rent tracker | _(Coolify app)_ | MySQL db `rent_tracker`; queues via GHCR worker |
 | Shared MySQL | — | Container `fustqja2jtg6lwbiil1hm6ho` |
 | Coolify Redis | — | `coolify-redis` |
 | Coolify proxy / Traefik | — | `coolify-proxy` |

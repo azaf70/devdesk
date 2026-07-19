@@ -1,5 +1,10 @@
 import { fetchHostStats, diskUsedPct, memUsedPct, HostStats } from "./host-stats";
 import { sendTelegram } from "./telegram";
+import {
+  fetchAllQueueStatuses,
+  parseQueueApps,
+  type QueueAppStatus,
+} from "./queues";
 
 export type UrlCheck = {
   url: string;
@@ -22,6 +27,7 @@ export type WatchdogSnapshot = {
   host: HostStats | null;
   hostError: string | null;
   hostAlerts: HostAlert[];
+  queues: QueueAppStatus[];
   lastRunAt: string | null;
   telegramConfigured: boolean;
   intervalMs: number;
@@ -50,6 +56,7 @@ function getState(): WatchdogState {
         host: null,
         hostError: null,
         hostAlerts: [],
+        queues: [],
         lastRunAt: null,
         telegramConfigured: false,
         intervalMs: 60_000,
@@ -86,6 +93,11 @@ function memThreshold(): number {
   const raw = process.env.MEM_ALERT_PCT;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : 90;
+}
+
+function queueAlertsEnabled(): boolean {
+  const raw = (process.env.QUEUE_FAILED_ALERT ?? "1").trim().toLowerCase();
+  return raw !== "0" && raw !== "false" && raw !== "off";
 }
 
 async function checkUrl(url: string): Promise<UrlCheck> {
@@ -140,6 +152,47 @@ function buildHostAlerts(stats: HostStats): HostAlert[] {
     message: `Memory ${mem}% used (alert ≥ ${memLim}%)`,
   });
 
+  return alerts;
+}
+
+function buildQueueAlerts(queues: QueueAppStatus[]): HostAlert[] {
+  if (!queueAlertsEnabled()) return [];
+  const alerts: HostAlert[] = [];
+  for (const q of queues) {
+    // Skip apps with no container yet (misconfig) — still alert if we had one before
+    if (!q.container) {
+      alerts.push({
+        key: `queue-container-${q.id}`,
+        ok: false,
+        message: `${q.name}: no running container (${q.error || "missing"})`,
+      });
+      continue;
+    }
+
+    if (q.workerUp === false) {
+      alerts.push({
+        key: `queue-worker-${q.id}`,
+        ok: false,
+        message: `${q.name}: queue worker DOWN`,
+      });
+    } else if (q.workerUp === true) {
+      alerts.push({
+        key: `queue-worker-${q.id}`,
+        ok: true,
+        message: `${q.name}: queue worker UP`,
+      });
+    }
+
+    const failed = q.failed ?? 0;
+    alerts.push({
+      key: `queue-failed-${q.id}`,
+      ok: failed === 0,
+      message:
+        failed === 0
+          ? `${q.name}: no failed jobs`
+          : `${q.name}: ${failed} failed job${failed === 1 ? "" : "s"}`,
+    });
+  }
   return alerts;
 }
 
@@ -199,12 +252,32 @@ export async function runWatchdogOnce(): Promise<WatchdogSnapshot> {
     await maybeAlertHost(hostAlerts);
   }
 
+  let queues: QueueAppStatus[] = [];
+  if (parseQueueApps().length > 0) {
+    try {
+      queues = await fetchAllQueueStatuses();
+      const queueAlerts = buildQueueAlerts(queues);
+      await maybeAlertHost(queueAlerts);
+      hostAlerts = [...hostAlerts, ...queueAlerts];
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "queue check failed";
+      const qAlert: HostAlert = {
+        key: "queues",
+        ok: false,
+        message: `Queue poll failed: ${msg}`,
+      };
+      await maybeAlertHost([qAlert]);
+      hostAlerts = [...hostAlerts, qAlert];
+    }
+  }
+
   state.snapshot = {
     urls: urlResults,
     configuredUrls: urls,
     host,
     hostError,
     hostAlerts,
+    queues,
     lastRunAt: new Date().toISOString(),
     telegramConfigured: Boolean(
       process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID,
@@ -232,10 +305,12 @@ export function startWatchdog() {
   state.running = true;
   const ms = intervalMs();
   state.snapshot.intervalMs = ms;
-  console.log(`> Watchdog started (interval ${ms}ms, urls=${getUrls().length})`);
+  console.log(
+    `> Watchdog started (interval ${ms}ms, urls=${getUrls().length}, queues=${parseQueueApps().length})`,
+  );
   void runWatchdogOnce().then((snap) => {
     console.log(
-      `> Watchdog first run: ${snap.urls.length} urls, lastRun=${snap.lastRunAt}`,
+      `> Watchdog first run: ${snap.urls.length} urls, ${snap.queues.length} queues, lastRun=${snap.lastRunAt}`,
     );
   });
   state.timer = setInterval(() => {
