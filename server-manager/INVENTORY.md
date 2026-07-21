@@ -14,12 +14,12 @@ Source of truth for humans and next agents. Never put real passwords, API tokens
 | Telegram bot | Free | |
 | Cloudflare R2 | Stay in **free tier** | 10 GB storage, 1M Class A, 10M Class B/mo; egress $0. Use Standard storage only. Keep retention low (`BACKUP_KEEP_DAYS=7`) |
 | Cloudflare Workers / paid add-ons | **Do not enable** | Not needed for backups |
-| Cursor Coolify MCP (`coolify-mcp-server-kof70`) | Free (npx) | `COOLIFY_READONLY=true` |
+| Cursor Coolify MCP (`coolify-mcp-server-kof70`) | Free (npx) | Deploy-capable token in mcp.json (`COOLIFY_READONLY=false`); `secrets/coolify-api-token.txt` matches |
 | Hetzner API / Coolify write automation | Deferred (Phase 3) | Avoid anything that spins paid resources |
 
 Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and propose a free alternative first.
 
-## Agent status (as of 2026-07-19)
+## Agent status (as of 2026-07-21)
 
 | Item | Status |
 |------|--------|
@@ -28,6 +28,7 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 | Watchdog + Telegram | Configured in `.env` |
 | Laravel queue monitor | Home → Queues; `QUEUE_APPS` + Telegram via watchdog ([`docs/QUEUES.md`](docs/QUEUES.md)) |
 | Laravel queues (prod) | **Live on private GHCR images:** KInventory, rent-tracker, who-owes-who (`dockerimage`, in-image supervisord `queue-worker`). All host `laravel-queue@*` units disabled. VPS GHCR push/pull verified; normal Coolify pulls restored. Disk ~64% after prune. |
+| GHCR → Coolify auto-deploy | **Wired on all three:** repo secrets `COOLIFY_DEPLOY_WEBHOOK` (uuid only) + `COOLIFY_API_TOKEN` (Bearer) + `GHCR_TOKEN`; workflows use `cancel-in-progress: false`. who-owes-who `Dockerfile.prod` / `ghcr.yml` on main (commit `cb7c01b`). |
 | Cloudflare R2 bucket | `server-manager-backups` (WEUR, Standard) |
 | R2 S3 API token | `server-manager-backups-r2` — keys in `.env` as `BACKUP_S3_*` |
 | `BACKUP_TARGETS` | Set (Coolify Postgres + 3 MySQL DBs) |
@@ -40,13 +41,12 @@ Agents: if a feature needs a paid plan or will grow R2 past ~few GB, stop and pr
 
 ### Next agent checklist
 
-1. Push local Dockerfile.prod / entrypoint fixes for kinventory + rent-tracker (Ziggy vendor-first, no brace mkdir, strip bootstrap/cache). Commit who-owes-who `Dockerfile.prod` + `docker/prod/*` from [docs/examples/who-owes-who-docker](docs/examples/who-owes-who-docker) into `azaf70/who-owes-who`.
-2. New Laravel apps: run [`scripts/setup-laravel-ghcr.sh`](scripts/setup-laravel-ghcr.sh), review generated files, push, then configure/deploy Coolify. See [docs/ADD_LARAVEL_QUEUES.md](docs/ADD_LARAVEL_QUEUES.md).
-3. Keep disk under ~75% before any Coolify rebuild (`docker builder prune -af` + `docker image prune -af`; never volumes).
-4. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
-5. Optional: Tailscale Serve.
-6. Watch R2 usage in Cloudflare dashboard — stay under free tier.
-7. Do **not** add paid Cloudflare/Hetzner features without explicit approval.
+1. New Laravel apps: run [`scripts/setup-laravel-ghcr.sh`](scripts/setup-laravel-ghcr.sh), review generated files, push, then configure/deploy Coolify. See [docs/ADD_LARAVEL_QUEUES.md](docs/ADD_LARAVEL_QUEUES.md).
+2. Keep disk under ~75% before any Coolify rebuild (`docker builder prune -af` + `docker image prune -af`; never volumes).
+3. Optional: restore drill ([docs/RESTORE_DRILL.md](docs/RESTORE_DRILL.md)).
+4. Optional: Tailscale Serve.
+5. Watch R2 usage in Cloudflare dashboard — stay under free tier.
+6. Do **not** add paid Cloudflare/Hetzner features without explicit approval.
 
 ## Host
 
@@ -88,7 +88,7 @@ To rotate R2 keys: Cloudflare dashboard → R2 → Manage API Tokens → revoke 
 | Field | Value |
 |-------|--------|
 | Package | `coolify-mcp-server-kof70` via `npx -y` |
-| Mode | **Read-only** (`COOLIFY_READONLY=true`) |
+| Mode | **Deploy-capable** (`COOLIFY_READONLY=false` in mcp.json) |
 | Base URL | `https://coolify.azafcodes.co.uk` |
 | Token file | `server-manager/secrets/coolify-api-token.txt` (gitignored) |
 | Also in | `~/.cursor/mcp.json` → `mcpServers.coolify` |
@@ -118,7 +118,7 @@ This is **not** Phase 3. Phase 3 = Coolify/Hetzner controls inside Server Manage
 | Coolify | `coolify.azafcodes.co.uk` | Control plane; DB `coolify-db` / db `coolify` |
 | Personal site | `azafcodes.co.uk` | |
 | Kinventory | `kinventory.azafcodes.co.uk` | MySQL `kinventory`; Coolify `dockerimage` `ghcr.io/azaf70/kinventory:latest` (in-image queue) — [docs/QUEUES.md](docs/QUEUES.md) |
-| Who Owes Who | `who-owes-who.azafcodes.co.uk` | MySQL `who_owes_who`; Coolify `dockerimage` `ghcr.io/azaf70/who-owes-who:latest` (port 80, in-image queue); prod Dockerfile example in [docs/examples/who-owes-who-docker](docs/examples/who-owes-who-docker) |
+| Who Owes Who | `who-owes-who.azafcodes.co.uk` | MySQL `who_owes_who`; Coolify `dockerimage` `ghcr.io/azaf70/who-owes-who:latest` (port 80, in-image queue); GHCR workflow + Coolify Bearer deploy wired like kinventory/rent-tracker (`Dockerfile.prod` in repo; example retained in [docs/examples/who-owes-who-docker](docs/examples/who-owes-who-docker)) |
 | Rent tracker | `rent-tracker.azafcodes.co.uk` | MySQL `rent_tracker`; Coolify `dockerimage` `ghcr.io/azaf70/rent-tracker:latest` (in-image queue) |
 | Shared MySQL | — | Container `fustqja2jtg6lwbiil1hm6ho` |
 | Coolify Redis | — | `coolify-redis` |

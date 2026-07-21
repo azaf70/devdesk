@@ -82,6 +82,11 @@ This stores two GitHub secrets: `COOLIFY_DEPLOY_WEBHOOK` and `COOLIFY_API_TOKEN`
 The workflow deploys with `Authorization: Bearer …` only after the image push succeeds.
 Without both secrets, image builds stay automatic but deployment remains manual.
 
+Also set `GHCR_TOKEN` (classic PAT with `write:packages`) when the GHCR package is **not**
+linked to the GitHub repo — otherwise Actions `GITHUB_TOKEN` gets `403 Forbidden` on push.
+Use a Coolify API token with **`deploy`** ability (the read-only MCP token cannot redeploy).
+Generated `ghcr.yml` uses `cancel-in-progress: false` so rapid pushes do not cancel in-flight builds.
+
 ## Production security checklist
 
 Verified live for current apps (2026-07-19): `APP_DEBUG=false`, GHCR packages **private**, Docker credentials mode `600`, containers expose ports only on the Coolify network (not published to the public internet).

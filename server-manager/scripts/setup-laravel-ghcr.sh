@@ -386,6 +386,10 @@ EOF
   write_generated "$APP_ROOT/.github/workflows/ghcr.yml" <<EOF
 name: Build and push GHCR image
 
+# Build Dockerfile.prod, push to GHCR, then trigger Coolify to pull :latest.
+# Requires repo secrets: COOLIFY_DEPLOY_WEBHOOK, COOLIFY_API_TOKEN.
+# GHCR_TOKEN recommended (private package may reject GITHUB_TOKEN).
+
 on:
   push:
     branches: [main]
@@ -393,7 +397,7 @@ on:
 
 concurrency:
   group: ghcr-\${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -411,11 +415,14 @@ jobs:
       COOLIFY_API_TOKEN: \${{ secrets.COOLIFY_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: \${{ github.actor }}
-          password: \${{ secrets.GITHUB_TOKEN }}
+          # Private packages not linked to the repo reject GITHUB_TOKEN (403).
+          # Prefer GHCR_TOKEN (classic PAT: write:packages); fall back to GITHUB_TOKEN.
+          username: \${{ github.repository_owner }}
+          password: \${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
       - uses: docker/metadata-action@v5
         id: meta
         with:
@@ -440,6 +447,10 @@ jobs:
             -H "Authorization: Bearer \${COOLIFY_API_TOKEN}" \\
             -H "Accept: application/json" \\
             "\$COOLIFY_DEPLOY_WEBHOOK"
+      - name: Warn if Coolify secrets missing
+        if: \${{ env.COOLIFY_DEPLOY_WEBHOOK == '' || env.COOLIFY_API_TOKEN == '' }}
+        run: |
+          echo "::warning::COOLIFY_DEPLOY_WEBHOOK / COOLIFY_API_TOKEN not set — image pushed but Coolify was not redeployed."
 EOF
 
   touch "$APP_ROOT/.dockerignore"
@@ -541,6 +552,10 @@ validate() {
     { echo "FAIL  Dockerfile does not expose $PORT"; failed=1; }
   grep -q 'packages: write' "$APP_ROOT/.github/workflows/ghcr.yml" 2>/dev/null ||
     { echo "FAIL  GHCR workflow lacks packages: write"; failed=1; }
+  grep -q 'cancel-in-progress: false' "$APP_ROOT/.github/workflows/ghcr.yml" 2>/dev/null ||
+    { echo "FAIL  GHCR workflow must set cancel-in-progress: false"; failed=1; }
+  grep -q 'secrets.GHCR_TOKEN' "$APP_ROOT/.github/workflows/ghcr.yml" 2>/dev/null ||
+    { echo "FAIL  GHCR workflow should prefer secrets.GHCR_TOKEN for private packages"; failed=1; }
   grep -q 'APP_DEBUG must be false' "$entry" 2>/dev/null ||
     { echo "FAIL  entrypoint lacks APP_DEBUG refusal (rerun with --force)"; failed=1; }
   grep -q 'APP_KEY is missing' "$entry" 2>/dev/null ||
